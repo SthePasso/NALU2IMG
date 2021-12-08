@@ -62,7 +62,7 @@ we propose an existed architecture called Neural
 Arithmetic Logic Units (NALU) but with addition
 of Independent Gates to it. We would like to call
 this architecture as Neural Arithmetic Logic Units
-with Independent Gates (NALUIG) that can represents numerical quantities as linear activations using:
+with Independent Gates (NALUIG) that can represents numerical quantities as linear activations using:
 primitive arithmetic, operators, controlled by learned
 gates which will be independent of the input; use of
 separate weight matrices for the adder and multiplier.
@@ -72,9 +72,9 @@ with two Transition Matrix (NALU2M), and Neural
 Arithmetic Logic Unit with two Transition Matrix
 and Independent Gates (NALU2MIG), by changing
 the specifications of the original architecture, NALU.
-Based on our strategy to represent numerical quantities as individual neurons without a non-linearity
+Based on our strategy to represent numerical quantities as individual neurons without a non-linearity
 using independent gates, our experiments show that
-NALUIG, NALU2M, and NALU2MIG enhanced neural networks can learn to perform arithmetic over
+NALUIG, NALU2M, and NALU2MIG enhanced neural networks can learn to perform arithmetic over
 images of numbers, and execute computer code with
 very lower error rates than other existing neural
 networks. In this paper, we obtain better results in

@@ -57,9 +57,9 @@ NALU2MIG, can be useful in overcoming the
 issues faced by traditional neural networks. The
 NALU2MIG have a error rate lower then the state
 of art witch make it clear that it do a accurate
-generalization, numerical representations and numerical functions outside the range observed during
+generalization, numerical representations and numerical functions outside the range observed during
 training. The experiments show that, as compared
-to other traditional neural network activation functions, our models allow arbitrary numerical functions to be added to the module and controlled via
+to other traditional neural network activation functions, our models allow arbitrary numerical functions to be added to the module and controlled via
 independent learned gates and matrices.
 
 

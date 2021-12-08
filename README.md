@@ -1,5 +1,4 @@
-# NALU2IM
-Neural Arithmetic Logic Units with Two Transition Matrix and Independent Gates
+# Neural Arithmetic Logic Units with Two Transition Matrix and Independent Gates (NALU2IM)
 
 An implementation of Neural Arithmetic Logic Units (https://arxiv.org/pdf/1808.00508.pdf)
 

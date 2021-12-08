@@ -49,37 +49,19 @@ python3 learn_function.py
 |sqrt(a)|18.32|19.57|65.64|45.42|21.23|4.60|0.19|
 
 
-## Abstract
+## Conclusion
 
-Neural Networks always have been used
-to manipulate numerical information based on the
-training, however, their learning behavior does not
-display systematic generalization. Due to its inability
-to successfully perform operations when the numerical
-range used during the test time lie outside during
-training. To address the systematic generalization,
-we propose an existed architecture called Neural
-Arithmetic Logic Units (NALU) but with addition
-of Independent Gates to it. We would like to call
-this architecture as Neural Arithmetic Logic Units
-with Independent Gates (NALUIG) that can represents numerical quantities as linear activations using:
-primitive arithmetic, operators, controlled by learned
-gates which will be independent of the input; use of
-separate weight matrices for the adder and multiplier.
-Along with that, we have also introduced two more
-architectures called, Neural Arithmetic Logic Unit
-with two Transition Matrix (NALU2M), and Neural
-Arithmetic Logic Unit with two Transition Matrix
-and Independent Gates (NALU2MIG), by changing
-the specifications of the original architecture, NALU.
-Based on our strategy to represent numerical quantities as individual neurons without a non-linearity
-using independent gates, our experiments show that
-NALUIG, NALU2M, and NALU2MIG enhanced neural networks can learn to perform arithmetic over
-images of numbers, and execute computer code with
-very lower error rates than other existing neural
-networks. In this paper, we obtain better results in
-terms of numerical range generalization then the state
-of art
+Our experiments show that NALU-enhanced
+neural networks i.e., NALU2M, NALUIG and
+NALU2MIG, can be useful in overcoming the
+issues faced by traditional neural networks. The
+NALU2MIG have a error rate lower then the state
+of art witch make it clear that it do a accurate
+generalization, numerical representations and numerical functions outside the range observed during
+training. The experiments show that, as compared
+to other traditional neural network activation functions, our models allow arbitrary numerical functions to be added to the module and controlled via
+independent learned gates and matrices.
+
 
 See [nalu.py](nalu.py) for more details. I found these modifications can help the performance on the static simple function learning task.
 

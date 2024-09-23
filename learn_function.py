@@ -1,10 +1,9 @@
-"""Simple function learning"""
-
 import argparse
 import logging
 import pickle
 import os
 import math
+import time
 
 import numpy as np
 import matplotlib as mpl
@@ -138,6 +137,17 @@ def get_random_baseline(op, x_test_i, y_test_i, x_test_e, y_test_e, n_repeat=20)
     return total_rmse_i / n_repeat, total_rmse_e / n_repeat
 
 
+def calculate_errors(y_true, y_pred):
+    mae = np.mean(np.abs(y_true - y_pred))
+    mse = np.mean((y_true - y_pred) ** 2)
+    rmse = np.sqrt(mse)
+    mean_true = np.mean(y_true)
+    mad = np.mean(np.abs(y_true-mean_true)) 
+    return mae, mse, rmse, mad
+
+def calculate_accuracy(y_true, y_pred, threshold=0.1):
+    return np.mean(np.abs(y_true - y_pred) < threshold)
+
 def train_static(op, net_type, net, x_train, y_train, x_test_i, y_test_i, x_test_e, y_test_e,
                  random_i, random_e, params):
     batch_size = params['batch_size']
@@ -165,67 +175,110 @@ def train_static(op, net_type, net, x_train, y_train, x_test_i, y_test_i, x_test
     best_loss = 1e9
     best_round = 0
 
+    # Initial evaluations
+    start_time_i = time.time()
     i_rmse = evaluate_rmse(net, test_i_data, ctx) 
+    end_time_i = time.time()
+    training_time_i = end_time_i - start_time_i
+
+    start_time_e = time.time()
     e_rmse = evaluate_rmse(net, test_e_data, ctx) 
+    end_time_e = time.time()
+    training_time_e = end_time_e - start_time_e
 
     logging.info("Epoch: %2d\tBatch: %d\tI MSE: %.6f\tE MSE: %.6f\tI score: %.2f\tE score: %.2f" %
                  (0, 0, i_rmse, e_rmse, i_rmse / random_i * 100, e_rmse / random_e * 100))
 
-    for i in range(params['n_epoch']):
-        for j, (x, label) in enumerate(train_data):
-            x, label = x.as_in_context(ctx), label.as_in_context(ctx)
-
+    start_time = time.time()  # Start measuring training time
+    for epoch in range(params['n_epoch']):
+        for i, (data, label) in enumerate(train_data):
+            data = data.as_in_context(ctx)
+            label = label.as_in_context(ctx).reshape((-1, 1))
             with autograd.record():
-                y = net(x)
-                loss = l2loss(y, label)
-
+                output = net(data)
+                loss = l2loss(output, label)
             loss.backward()
             trainer.step(batch_size)
+            num_batch = i + 1
 
-            loss = np.sqrt(mx.nd.mean(loss).asscalar())
-            moving_loss = loss if moving_loss is None else moving_loss * 0.98 + loss * 0.02
+            if moving_loss is None:
+                moving_loss = np.mean(loss.asnumpy())
+            else:
+                moving_loss = .99 * moving_loss + .01 * np.mean(loss.asnumpy())
 
-        i_rmse = evaluate_rmse(net, test_i_data, ctx) 
-        e_rmse = evaluate_rmse(net, test_e_data, ctx) 
+        if epoch % print_every == 0:
+            start_time_i = time.time()
+            i_rmse = evaluate_rmse(net, test_i_data, ctx)
+            end_time_i = time.time()
+            training_time_i += (end_time_i - start_time_i)
 
-        if moving_loss < best_loss:
-            best_loss = moving_loss
-            best_round = i
+            start_time_e = time.time()
+            e_rmse = evaluate_rmse(net, test_e_data, ctx)
+            end_time_e = time.time()
+            training_time_e += (end_time_e - start_time_e)
 
-        if best_round + params['early_stopping'] < i or (i_rmse / random_i * 100 < 0.005 and e_rmse / random_e * 100 < 0.005):
-            break
+            logging.info("Epoch: %2d\tBatch: %d\tI MSE: %.6f\tE MSE: %.6f\tI score: %.2f\tE score: %.2f\tMoving loss: %.6f" %
+                         (epoch + 1, num_batch, i_rmse, e_rmse, i_rmse / random_i * 100, e_rmse / random_e * 100, moving_loss))
+            if i_rmse + e_rmse < best_loss:
+                best_loss = i_rmse + e_rmse
+                best_round = epoch + 1
+                net.save_parameters(filename)
 
-        if i % print_every == 0:
-            logging.info("Epoch: %2d\tBatch: %d\tLoss: %.6f\tI MSE: %.6f\tE MSE: %.6f\tI score: %.2f\tE score: %.2f" %
-                         (i, j, moving_loss, i_rmse, e_rmse, i_rmse / random_i * 100, e_rmse / random_e * 100))
+    end_time = time.time()  # End measuring training time
+    training_time = end_time - start_time
 
-    if params['n_epoch'] > 0:
-        net.save_parameters(filename)
+    # Calculate accuracy
+    # Compute final predictions and errors
+    y_test_i_pred = net(nd.array(x_test_i, ctx=ctx)).asnumpy()
+    y_test_e_pred = net(nd.array(x_test_e, ctx=ctx)).asnumpy()
+    
+    accuracy_i = calculate_accuracy(y_test_i, y_test_i_pred)
+    accuracy_e = calculate_accuracy(y_test_e, y_test_e_pred)
 
-    return i_rmse / random_i * 100, e_rmse / random_e * 100
+    mae_i, mse_i, rmse_i, mad_i = calculate_errors(y_test_i, y_test_i_pred)
+    mae_e, mse_e, rmse_e, mad_e = calculate_errors(y_test_e, y_test_e_pred)
+    
+    return {
+        'net': net,
+        'i_mae': mae_i,
+        'i_mse': mse_i,
+        'i_rmse': rmse_i,
+        'i_mad': mad_i,
+        'e_mae': mae_e,
+        'e_mse': mse_e,
+        'e_rmse': rmse_e,
+        'e_mad': mad_e,
+        'accuracy_i': accuracy_i,
+        'accuracy_e': accuracy_e,
+        'training_time': training_time,
+        'training_time_i': training_time_i,
+        'training_time_e': training_time_e
+    }
 
 
-def results_to_markdown(eval_results):
-    res_str = ""
-    res_str += "|     |"
+
+def results_to_markdown(eval_results, metrics):
+    # Create header row
+    res_str = "|       |"
     for net_type in networks:
-        res_str += net_type + "|"
-    res_str += "\n| --- | "
+        res_str += f"  {net_type}  |" * len(metrics)
+    res_str += "\n| --- " + " | --- " * len(networks) * len(metrics) + "|\n|       |"
+
+    # Create sub-header row
     for net_type in networks:
-        res_str += " --- |"
+        for metric in metrics:
+            res_str += f" {metric} |"
     res_str += "\n"
 
+    # Create rows for each operator
     for op in operators:
-        res_str += "|"
-        res_str += op
-        res_str += "|"
+        res_str += f"| {op} |"
         for net_type in networks:
-            res_str += "%.2f" % eval_results[(op, net_type)]
-            res_str += "|"
+            results = eval_results.get((op, net_type), (np.nan, np.nan, np.nan))
+            res_str += " | ".join([f"{result:.2f}" for result in results]) + " |"
         res_str += "\n"
 
     return res_str
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--network", type=str)
@@ -257,7 +310,7 @@ if __name__ == '__main__':
     train_size, test_size = 40000, 2000
     params = {
         'n_epoch': args.n_epoch,
-        'early_stopping': 40,
+        'early_stopping': 50,
         'batch_size': 64,
         'optimizer': 'adam',
         'optimizer_params': {'learning_rate': args.learning_rate},
@@ -309,15 +362,14 @@ if __name__ == '__main__':
                     raise ValueError("Invalid Network: " + net_type)
 
             logging.info("Learn %s with %s" % (op, net_type))
-            i_rmse, e_rmse = train_static(op, net_type, net, x_train, y_train, x_test_i, y_test_i, x_test_e, y_test_e,
-                                          random_rmse_i, random_rmse_e, params)
+            errors = train_static(op, net_type, net, x_train, y_train, x_test_i, y_test_i, x_test_e, y_test_e,
+                                  random_rmse_i, random_rmse_e, params)
             
-            eval_results_i[(op, net_type)] = i_rmse
-            eval_results_e[(op, net_type)] = e_rmse
+            eval_results_i[(op, net_type)] = (errors['i_mae'], errors['i_mse'], errors['i_rmse'],errors['accuracy_i'], errors['training_time_i'])
+            eval_results_e[(op, net_type)] = (errors['e_mae'], errors['e_mse'], errors['e_rmse'],errors['accuracy_e'], errors['training_time_e'])
 
-    # print evaluation results
     print("### Interpolation")
-    print(results_to_markdown(eval_results_i))
+    print(results_to_markdown(eval_results_i, ['MAE', 'MSE', 'RMSE','MAD','ACCURACY','TRAINING TIME']))
 
     print("### Extrapolation")
-    print(results_to_markdown(eval_results_e))
+    print(results_to_markdown(eval_results_e, ['MAE', 'MSE', 'RMSE','MAD','ACCURACY','TRAINING TIME']))
